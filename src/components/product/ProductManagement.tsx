@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -25,59 +25,44 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 import ProductForm from "./ProductForm";
+import {
+  Product,
+  getProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+} from "@/lib/products";
 
-interface Product {
-  id: string;
-  code: string;
-  name: string;
-  description: string;
-  price: string;
-  unit: string;
-  ncm: string;
-}
-
-interface ProductManagementProps {
-  products?: Product[];
-  onCreateProduct?: (product: Omit<Product, "id">) => void;
-  onUpdateProduct?: (id: string, product: Omit<Product, "id">) => void;
-  onDeleteProduct?: (id: string) => void;
-  isLoading?: boolean;
-}
-
-const defaultProducts: Product[] = [
-  {
-    id: "1",
-    code: "P001",
-    name: "Sample Product",
-    description: "A sample product description",
-    price: "99.99",
-    unit: "UN",
-    ncm: "12345678",
-  },
-  {
-    id: "2",
-    code: "P002",
-    name: "Another Product",
-    description: "Another product description",
-    price: "149.99",
-    unit: "KG",
-    ncm: "87654321",
-  },
-];
-
-export default function ProductManagement({
-  products = defaultProducts,
-  onCreateProduct = (product) => console.log("Create product:", product),
-  onUpdateProduct = (id, product) =>
-    console.log("Update product:", id, product),
-  onDeleteProduct = (id) => console.log("Delete product:", id),
-  isLoading = false,
-}: ProductManagementProps) {
+export default function ProductManagement() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const loadProducts = async () => {
+    try {
+      setIsLoading(true);
+      const data = await getProducts();
+      setProducts(data);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Falha ao carregar produtos",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProducts();
+  }, []);
 
   const handleCreateClick = () => {
     setSelectedProduct(null);
@@ -94,42 +79,80 @@ export default function ProductManagement({
     setIsDeleteDialogOpen(true);
   };
 
-  const handleFormSubmit = (data: Omit<Product, "id">) => {
-    if (selectedProduct) {
-      onUpdateProduct(selectedProduct.id, data);
-    } else {
-      onCreateProduct(data);
+  const handleFormSubmit = async (data: Omit<Product, "id">) => {
+    try {
+      setIsLoading(true);
+      if (selectedProduct) {
+        await updateProduct(selectedProduct.id, data);
+        toast({
+          title: "Success",
+          description: "Produto atualizado com sucesso",
+        });
+      } else {
+        await createProduct(data);
+        toast({
+          title: "Success",
+          description: "Produto criado com sucesso",
+        });
+      }
+      await loadProducts();
+      setIsFormOpen(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: selectedProduct
+          ? "Falha ao atualizar produto"
+          : "Falha ao criar produto",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
-    setIsFormOpen(false);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (productToDelete) {
-      onDeleteProduct(productToDelete);
-      setIsDeleteDialogOpen(false);
-      setProductToDelete(null);
+      try {
+        setIsLoading(true);
+        await deleteProduct(productToDelete);
+        toast({
+          title: "Success",
+          description: "Produto excluído com sucesso",
+        });
+        await loadProducts();
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Falha ao excluir produto",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+        setIsDeleteDialogOpen(false);
+        setProductToDelete(null);
+      }
     }
   };
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-sm">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Product Management</h2>
-        <Button onClick={handleCreateClick}>
+        <h2 className="text-2xl font-bold">Gerenciamento de Produtos</h2>
+        <Button onClick={handleCreateClick} disabled={isLoading}>
           <Plus className="mr-2 h-4 w-4" />
-          Add Product
+          Adicionar Produto
         </Button>
       </div>
 
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Code</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Price</TableHead>
-            <TableHead>Unit</TableHead>
+            <TableHead>Código</TableHead>
+            <TableHead>Nome</TableHead>
+            <TableHead>Preço</TableHead>
+            <TableHead>Unidade</TableHead>
             <TableHead>NCM</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead>Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -137,7 +160,12 @@ export default function ProductManagement({
             <TableRow key={product.id}>
               <TableCell>{product.code}</TableCell>
               <TableCell>{product.name}</TableCell>
-              <TableCell>{product.price}</TableCell>
+              <TableCell>
+                {product.price.toLocaleString("pt-BR", {
+                  style: "currency",
+                  currency: "BRL",
+                })}
+              </TableCell>
               <TableCell>{product.unit}</TableCell>
               <TableCell>{product.ncm}</TableCell>
               <TableCell>
@@ -146,6 +174,7 @@ export default function ProductManagement({
                     variant="outline"
                     size="icon"
                     onClick={() => handleEditClick(product)}
+                    disabled={isLoading}
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -153,6 +182,7 @@ export default function ProductManagement({
                     variant="destructive"
                     size="icon"
                     onClick={() => handleDeleteClick(product.id)}
+                    disabled={isLoading}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -167,7 +197,7 @@ export default function ProductManagement({
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {selectedProduct ? "Edit Product" : "Add New Product"}
+              {selectedProduct ? "Editar Produto" : "Adicionar Novo Produto"}
             </DialogTitle>
           </DialogHeader>
           <ProductForm
@@ -184,19 +214,20 @@ export default function ProductManagement({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this product? This action cannot
-              be undone.
+              Tem certeza que deseja excluir este produto? Esta ação não pode
+              ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
               className="bg-red-600 hover:bg-red-700"
+              disabled={isLoading}
             >
-              Delete
+              Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

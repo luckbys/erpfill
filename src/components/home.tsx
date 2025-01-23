@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import InvoiceList from "./invoice/InvoiceList";
-import DashboardStats from "./dashboard/DashboardStats";
+import Dashboard from "./dashboard/Dashboard";
 import InvoiceForm from "./invoice/InvoiceForm";
 import CompanyManagement from "./company/CompanyManagement";
 import ProductManagement from "./product/ProductManagement";
@@ -21,19 +21,7 @@ export default function Home() {
   const renderContent = () => {
     switch (activeTab) {
       case "dashboard":
-        return (
-          <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-gray-900">
-              NFe Manager Dashboard
-            </h1>
-            <DashboardStats
-              totalInvoices={25}
-              totalCompanies={8}
-              totalProducts={45}
-              pendingInvoices={3}
-            />
-          </div>
-        );
+        return <Dashboard />;
       case "invoices":
         return (
           <div className="space-y-6">
@@ -42,7 +30,7 @@ export default function Home() {
                 <h2 className="text-2xl font-semibold">Invoices</h2>
                 <Button onClick={() => setShowInvoiceForm(true)}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Create Invoice
+                  Criar Nota Fiscal
                 </Button>
               </div>
               <InvoiceList />
@@ -59,19 +47,16 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar
-        className="fixed left-0 top-0 h-screen w-64 border-r bg-white"
-        onNavigate={setActiveTab}
-        activeTab={activeTab}
-      />
-
-      <main className="flex-1 ml-64 p-8">{renderContent()}</main>
+    <div className="min-h-screen bg-background">
+      <div className="flex">
+        <Sidebar onNavigate={setActiveTab} activeTab={activeTab} />
+        <main className="flex-1 p-8">{renderContent()}</main>
+      </div>
 
       <Dialog open={showInvoiceForm} onOpenChange={setShowInvoiceForm}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Create New Invoice</DialogTitle>
+            <DialogTitle>Criar Nova Nota Fiscal</DialogTitle>
           </DialogHeader>
           <InvoiceForm
             onSubmit={(data) => {
